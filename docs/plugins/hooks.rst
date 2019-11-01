@@ -208,6 +208,10 @@ octoprint.accesscontrol.appkey
 
 .. py:function:: acl_appkey_hook(*args, **kwargs)
 
+   .. deprecated:: 1.3.11
+
+      This functionality will be removed in 1.4.0. Use the :ref:`Application Keys Plugin workflow <sec-bundledplugins-appkeys-workflow>` instead.
+
    By handling this hook plugins may register additional :ref:`App session key providers <sec-api-apps-sessionkey>`
    within the system.
 
@@ -380,10 +384,10 @@ octoprint.cli.commands
             OctoPrint's CLI.
    :rtype: list
 
-.. _sec-plugins-hook-comm-firmware-info:
+.. _sec-plugins-hook-comm-protocol-firmware-info:
 
-octoprint.comm.firmware.info
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+octoprint.comm.protocol.firmware.info
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. py:function:: firmware_info_hook(comm_instance, firmware_name, firmware_data, *args, **kwargs)
 
@@ -402,14 +406,21 @@ octoprint.comm.firmware.info
 
    ``firmware_name`` will be ``Some Firmware Name`` in this case.
 
+   .. warning::
+
+      Make sure to not perform any computationally expensive or otherwise long running actions within these handlers as
+      you will effectively block the receive loop, causing the communication with the printer to stall.
+
+      This includes I/O of any kind.
+
    :param object comm_instance: The :class:`~octoprint.util.comm.MachineCom` instance which triggered the hook.
    :param str firmware_name: The name of the parsed capability
    :param dict firmware_data: All data contained in the ``M115`` report
 
-.. _sec-plugins-hook-comm-firmware-capabilities:
+.. _sec-plugins-hook-comm-protocol-firmware-capabilities:
 
-octoprint.comm.firmware.capabilities
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+octoprint.comm.firmware.protocol.capabilities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. py:function:: firmware_capability_hook(comm_instance, capability, enabled, already_defined, *args, **kwargs)
 
@@ -420,6 +431,13 @@ octoprint.comm.firmware.capabilities
    parsed capabilities will also be provided.
 
    Note that hook handlers will be called once per received capability line.
+
+   .. warning::
+
+      Make sure to not perform any computationally expensive or otherwise long running actions within these handlers as
+      you will effectively block the receive loop, causing the communication with the printer to stall.
+
+      This includes I/O of any kind.
 
    :param object comm_instance: The :class:`~octoprint.util.comm.MachineCom` instance which triggered the hook.
    :param str capability: The name of the parsed capability
@@ -439,6 +457,13 @@ octoprint.comm.protocol.action
    command ``line`` and provides the parsed ``action`` (so anything after ``// action:``) to the hook handler.
 
    No returned value is expected.
+
+   .. warning::
+
+      Make sure to not perform any computationally expensive or otherwise long running actions within your handlers as
+      you will effectively block the receive loop, causing the communication with the printer to stall.
+
+      This includes I/O of any kind.
 
    **Example:**
 
@@ -476,6 +501,13 @@ This describes actually two hooks:
    Please note that these hooks do not allow to rewrite, suppress or expand @ commands, they are merely callbacks to
    trigger the *actual execution* of whatever functionality lies behind a given @ command, similar to
    :ref:`the action command hook <sec-plugins-hook-comm-protocol-action>`.
+
+   .. warning::
+
+      Make sure to not perform any computationally expensive or otherwise long running actions within your handlers as
+      you will effectively block the send/receive loops, causing the communication with the printer to stall.
+
+      This includes I/O of any kind.
 
    **Example**
 
@@ -623,6 +655,13 @@ This describes actually four hooks:
      Note: Only one command of a given ``cmd_type`` (other than None) may be queued at a time. Trying to rewrite the ``cmd_type``
      to one already in the queue will give an error.
 
+   .. warning::
+
+      Make sure to not perform any computationally expensive or otherwise long running actions within these handlers as
+      you will effectively block the send loop, causing the communication with the printer to stall.
+
+      This includes I/O of any kind.
+
    **Example**
 
    The following hook handler replaces all ``M107`` ("Fan Off", deprecated) with an ``M106 S0`` ("Fan On" with speed
@@ -658,6 +697,13 @@ octoprint.comm.protocol.gcode.received
    empty string as the received line. Note that Python functions will also automatically return ``None`` if an empty
    ``return`` statement is used or just nothing is returned explicitly from the handler.
 
+   .. warning::
+
+      Make sure to not perform any computationally expensive or otherwise long running actions within these handlers as
+      you will effectively block the receive loop, causing the communication with the printer to stall.
+
+      This includes I/O of any kind.
+
    **Example:**
 
    Looks for the response of an ``M115``, which contains information about the ``MACHINE_TYPE``, among other things.
@@ -687,6 +733,13 @@ octoprint.comm.protocol.gcode.error
    Plugins might utilize this hook to handle errors generated by the printer that are recoverable in one way or
    the other and should not trigger the normal handling that assumes the worst.
 
+   .. warning::
+
+      Make sure to not perform any computationally expensive or otherwise long running actions within these handlers as
+      you will effectively block the receive loop, causing the communication with the printer to stall.
+
+      This includes I/O of any kind.
+
    **Example:**
 
    Looks for error messages containing "fan error" or "bed missing" (ignoring case) and marks them as handled by the
@@ -713,9 +766,10 @@ octoprint.comm.protocol.scripts
    make sure to only proceed with returning additional scripts if the ``script_type`` and ``script_name`` match
    handled scripts. If not, None should be returned directly.
 
-   If the hook handler has something to add to the specified script, it may return a 2-tuple or a 3-tuple with the first entry
+   If the hook handler has something to add to the specified script, it may return a 2-tuple, a 3-tuple or a 4-tuple with the first entry
    defining the prefix (what to *prepend* to the script in question), the second entry defining the postfix (what to
-   *append* to the script in question), and finally if desired a dictionary of variables to be made available to the script. Both prefix and postfix can be None to signify that nothing should be prepended
+   *append* to the script in question), and finally if desired a dictionary of variables to be made available to the script on third and additional tags to set on the
+   commands on fourth position. Both prefix and postfix can be None to signify that nothing should be prepended
    respectively appended.
 
    The returned prefix and postfix entries may be either iterables of script lines or a string including newlines of the script lines (which
@@ -761,6 +815,13 @@ octoprint.comm.protocol.temperatures.received
    This hook can be useful in cases where a printer e.g. is prone to returning garbage data from time to time, allowing
    additional sanity checking to be applied and invalid values to be filtered out. If a handler returns an empty
    dictionary or ``None``, no further processing will take place.
+
+   .. warning::
+
+      Make sure to not perform any computationally expensive or otherwise long running actions within these handlers as
+      you will effectively block the receive loop, causing the communication with the printer to stall.
+
+      This includes I/O of any kind.
 
    **Example**
 
@@ -846,6 +907,34 @@ octoprint.comm.transport.serial.factory
    :return: The constructed serial object ready for use, or ``None`` if the handler could not construct the object.
    :rtype: A serial instance implementing implementing the methods ``readline(...)``, ``write(...)``, ``close()`` and
        optionally ``baudrate`` and ``timeout`` attributes as described above.
+
+.. _sec-plugins-hook-events-register_custom_events:
+
+octoprint.events.register_custom_events
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: register_custom_events_hook(*args, **kwargs)
+
+   Return a list of custom :ref:`events <sec-events>` to register in the system for your plugin.
+
+   Should return a list of strings which represent the custom events. Their name on the `octoprint.events.Events` object
+   will be the returned value transformed into upper case ``CAMEL_CASE`` and prefixed with ``PLUGIN_<IDENTIFIER>``. Their
+   value will be prefixed with ``plugin_<identifier>_``.
+
+   Example:
+
+   Consider the following hook part of a plugin with the identifier ``myplugin``. It will register two custom events
+   in the system, ``octoprint.events.Events.PLUGIN_MYPLUGIN_MY_CUSTOM_EVENT`` with value ``plugin_myplugin_my_custom_event``
+   and ``octoprint.events.Events.PLUGIN_MYPLUGIN_MY_OTHER_CUSTOM_EVENT`` with value ``plugin_myplugin_my_other_custom_event``.
+
+   .. code-block:: python
+      :linenos:
+
+      def register_custom_events(*args, **kwargs):
+          return ["my_custom_event", "my_other_custom_event"]
+
+   :return: A list of custom events to register
+   :rtype: list
 
 .. _sec-plugins-hook-filemanager-analysis-factory:
 
@@ -1033,6 +1122,139 @@ octoprint.printer.estimation.factory
    :return: The :class:`~octoprint.printer.estimation.PrintTimeEstimator` class to use, or a factory method
    :rtype: class or function
 
+.. _sec-plugins-hook-octoprint-printer-sdcardupload:
+
+octoprint.printer.sdcardupload
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: sd_card_upload_hook(printer, filename, path, start_callback, success_callback, failure_callback, *args, **kwargs)
+
+   Via this hook plugins can change the way files are being uploaded to the sd card of the printer.
+
+   Implementations **must** call the provided ``start_callback`` on start of the file transfer and either the ``success_callback``
+   or ``failure_callback`` on the end of the file transfer, depending on whether it was successful or not.
+
+   The ``start_callback`` has the following signature:
+
+   .. code-block:: python
+
+      def start_callback(local_filename, remote_filename):
+          # ...
+
+   ``local_filename`` must be the name of the file on the ``local`` storage, ``remote_filename`` the name of the file
+   to be created on the ``sdcard`` storage.
+
+   ``success_callback`` and ``failure_callback`` both have the following signature:
+
+   .. code-block:: python
+
+      def success_or_failure_callback(local_filename, remote_filename, elapsed):
+          # ...
+
+   ``local_filename`` must be the name of the file on the ``local`` storage, ``remote_filename`` the name of the file
+   to be created on the ``sdcard`` storage. ``elapsed`` is the elapsed time in seconds.
+
+   If the hook is going to handle the upload, it must return the (future) remote filename of the file on the ``sdcard``
+   storage. If it returns ``None`` (or an otherwise falsy value), OctoPrint will interpret this as the hook not going to
+   handle the file upload, in which case the next hook or - if no other hook is registered - the default implementation
+   will be called.
+
+   **Example**
+
+   The following example creates a dummy SD card uploader that does nothing but sleep for ten seconds when a file
+   is supposed to be uploaded. Note that the long running process of sleeping for ten seconds is extracted into its
+   own thread, which is important in order to not block the main application!
+
+   .. code-block:: python
+
+      import threading
+      import logging
+      import time
+
+      def nop_upload_to_sd(printer, filename, path, sd_upload_started, sd_upload_succeeded, sd_upload_failed, *args, **kwargs):
+          logger = logging.getLogger(__name__)
+
+          remote_name = printer._get_free_remote_name(filename)
+          logger.info("Starting dummy SDCard upload from {} to {}".format(filename, remote_name))
+
+          sd_upload_started(filename, remote_name)
+
+          def process():
+              logger.info("Sleeping 10s...")
+              time.sleep(10)
+              logger.info("And done!")
+              sd_upload_succeeded(filename, remote_name, 10)
+
+          thread = threading.Thread(target=process)
+          thread.daemon = True
+          thread.start()
+
+          return remote_name
+
+      __plugin_name__ = "No-op SDCard Upload Test"
+      __plugin_hooks__ = {
+          "octoprint.printer.sdcardupload": nop_upload_to_sd
+      }
+
+   .. versionadded:: 1.3.11
+
+   :param object printer: the :py:class:`~octoprint.printer.PrinterInterface` instance the hook was called from
+   :param str filename: filename on the ``local`` storage
+   :param str path: path of the file in the local file system
+   :param function sd_upload_started: callback for when the upload started
+   :param function sd_upload_success: callback for successful finish of upload
+   :param function sd_upload_failure: callback for failure of upload
+   :return: the name of the file on the ``sdcard`` storage or ``None``
+   :rtype: string or ``None``
+
+.. _sec-plugins-hook-server-http-after_request:
+
+octoprint.server.api.after_request
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: after_request_handlers_hook(*args, **kwargs)
+
+   Allows adding additional after-request-handlers to API endpoints defined by OctoPrint itself and installed plugins.
+
+   Your plugin might need this to further restrict access to API methods. See the bundled "Force Login" plugin for a
+   usage example.
+
+   .. important::
+
+      Implementing this hook will make your plugin require a restart of OctoPrint for enabling/disabling it fully.
+
+.. _sec-plugins-hook-server-http-before_request:
+
+octoprint.server.api.before_request
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: after_request_handlers_hook(*args, **kwargs)
+
+   Allows adding additional before-request-handlers to API endpoints defined by OctoPrint itself and installed plugins.
+
+   Your plugin might need this to further restrict access to API methods. See the bundled "Force Login" plugin for a
+   usage example.
+
+   .. important::
+
+      Implementing this hook will make your plugin require a restart of OctoPrint for enabling/disabling it fully.
+
+.. _sec-plugins-hook-server-http-access_validator:
+
+octoprint.server.http.access_validator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: access_validator_hook(request, *args, **kwargs)
+
+   Allows adding additional access validators to the default tornado routers.
+
+   Your plugin might need to this to restrict acccess to downloads and webcam snapshots further. See the bundled
+   "Force Login" plugin for a usage example.
+
+   .. important::
+
+      Implementing this hook will make your plugin require a restart of OctoPrint for enabling/disabling it fully.
+
 .. _sec-plugins-hook-server-http-bodysize:
 
 octoprint.server.http.bodysize
@@ -1109,6 +1331,14 @@ octoprint.server.http.routes
 
    .. important::
 
+      If you want your route to support CORS if it's enabled in OctoPrint, your `RequestHandler <http://tornado.readthedocs.org/en/branch4.0/web.html#request-handlers>`_
+      needs to implement the :class:`~octoprint.server.util.tornado.CorsSupportMixin` for this to work. Note that all of
+      :class:`~octoprint.server.util.tornado.LargeResponseHandler`, :class:`~octoprint.server.util.tornado.UrlProxyHandler`,
+      :class:`~octoprint.server.util.tornado.StaticDataHandler` and :class:`~octoprint.server.util.tornado.DeprecatedEndpointHandler`
+      already implement this mixin.
+
+   .. important::
+
       Implementing this hook will make your plugin require a restart of OctoPrint for enabling/disabling it fully.
 
    **Example**
@@ -1132,6 +1362,85 @@ octoprint.server.http.routes
 
    :param list server_routes: read-only list of the currently configured server routes
    :return: a list of 3-tuples with additional routes as defined above
+   :rtype: list
+
+.. _sec-plugins-hook-server-sockjs-authed:
+
+octoprint.server.sockjs.authed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: socket_authed_hook(socket, user, *args, **kwargs):
+
+   Allows plugins to be notified that a user got authenticated or deauthenticated on the socket (e.g. due to logout).
+
+   See the bundled :ref:`Forcelogin Plugin <sec-bundledplugins-forcelogin>` for an example on how to utilize this.
+
+   :param object socket: the socket object which is about to be registered
+   :param object user: the user that got authenticated on the socket, or None if the user got deauthenticated
+
+.. _sec-plugins-hook-server-sockjs-register:
+
+octoprint.server.sockjs.register
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: socket_registration_hook(socket, user, *args, **kwargs):
+
+   Allows plugins to prevent a new :ref:`push socket client <sec-api-push>` to be registered to the system.
+
+   Handlers should return either ``True`` or ``False``. ``True`` signals to proceed with normal registration. ``False``
+   signals to not register the client.
+
+   See the bundled :ref:`Forcelogin Plugin <sec-bundledplugins-forcelogin>` for an example on how to utilize this.
+
+   :param object socket: the socket object which is about to be registered
+   :param object user: the user currently authenticated on the socket - might be None
+   :return: whether to proceed with registration (``True``) or not (``False``)
+   :rtype: boolean
+
+.. _sec-plugins-hook-server-sockjs-emit:
+
+octoprint.server.sockjs.emit
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: socket_emit_hook(socket, user, message, payload, *args, **kwargs):
+
+   Allows plugins to prevent any messages to be emitted on an existing :ref:`push connection <sec-api-push>`.
+
+   Handlers should return either ``True`` to allow the message to be emitted, or ``False`` to prevent it.
+
+   See the bundled :ref:`Forcelogin Plugin <sec-bundledplugins-forcelogin>` for an example on how to utilize this.
+
+   :param object socket: the socket object on which a message is about to be emitted
+   :param object user: the user currently authenticated on the socket - might be None
+   :param string message: the message type about to be emitted
+   :param dict payload: the payload of the message about to be emitted (may be None)
+   :return: whether to proceed with sending the message (``True``) or not (``False``)
+   :rtype: boolean
+
+.. _sec-plugins-hook-timelapse-extensions:
+
+octoprint.timelapse.extensions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. py:function:: timelapse_extension_hook(*args, **kwargs)
+
+   Allows extending the set of supported file extensions for timelapse files. Handlers must return a list of
+   additional file extensions.
+
+   **Example**
+
+   Allow the management of timelapse GIFs with extension ``gif``.
+
+   .. code-block:: python
+
+      def get_timelapse_extensions(*args, **kwargs):
+          return ["gif"]
+
+      __plugin_hooks__ = {
+          "octoprint.timelapse.extensions": get_timelapse_extensions
+      }
+
+   :return: a list of additional file extensions
    :rtype: list
 
 .. _sec-plugins-hook-ui-web-templatetypes:
